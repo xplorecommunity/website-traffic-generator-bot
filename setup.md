@@ -7,6 +7,7 @@ Ensure that Tor is installed and running on your Linux system.
 ```bash
 sudo apt update
 sudo apt install tor -y
+npx puppeteer browsers install chrome
 ```
 
 ---

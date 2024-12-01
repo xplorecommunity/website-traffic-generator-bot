@@ -1,4 +1,5 @@
-const puppeteer = require('puppeteer');
+const connectionURL = 'wss://browser.zenrows.com?apikey=ed1081ae78d0faaf71f6768d4541022e98ea7d37';
+
 const fs = require('fs').promises;
 const TorControl = require('tor-control');
 const path = require('path');
@@ -14,7 +15,7 @@ const torControl = new TorControl({
 // Function to get current IP through Tor
 async function getCurrentIP(page) {
   try {
-    await page.goto('https://check.torproject.org', { waitUntil: 'networkidle0', timeout: 10000 });
+    await page.goto('https://check.torproject.org');
     const ip = await page.$eval('body', (body) => {
       const match = body.innerText.match(/Your IP address appears to be: (\d+\.\d+\.\d+\.\d+)/);
       return match ? match[1] : 'Unknown';
@@ -112,11 +113,11 @@ async function simulateSingleView(url, options = {}) {
 
           // Random scroll
           await page.evaluate(() => {
-            window.scrollBy(0,  Math.random() * 500);
+            window.scrollBy(0, Math.random() * 500);
           });
 
           // Short wait
-          await new Promise(resolve => setTimeout(resolve,  Math.random() * 2000));
+          await new Promise(resolve => setTimeout(resolve, Math.random() * 2000));
         } catch (subPageError) {
           await logMessage(`  └ Error navigating sub-page: ${link} - ${subPageError.message}`);
         }
@@ -144,7 +145,7 @@ async function simulateSingleView(url, options = {}) {
       });
     });
     
-    await new Promise((resolve) => setTimeout(resolve, 3000)); // Wait for circuit change
+    await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait for circuit change
 
     await browser.close();
 
@@ -162,17 +163,14 @@ async function simulateTraffic(url, options = {}) {
   // Determine number of parallel processes (use # of CPU cores)
   const numCPUs = os.cpus().length;
   const maxParallelViews = Math.min(numCPUs, views);
-  console.log("numCpus: ",numCPUs)
-  console.log("Parallel Views: ",maxParallelViews)
 
   // Unique IPs tracker
   const uniqueIPs = new Set();
-  const ipLogFile = path.join(__dirname, 'unique_ips_parallel-diff-ips.log');
+  const ipLogFile = path.join(__dirname, 'unique_ips.log');
 
   // Parallel execution using Promise.all
   const viewPromises = Array.from({ length: views }, (_, index) => 
     simulateSingleView(url, { duration, index: index + 1 })
-    // console.log("asd")
   );
 
   try {
@@ -193,6 +191,6 @@ async function simulateTraffic(url, options = {}) {
 }
 
 // Usage
-simulateTraffic('https://xplore-blog.vercel.app', { views: 2, duration: 3000 });
+simulateTraffic('https://xplore-blog.vercel.app', { views: 10, duration: 3000 });
 
 module.exports = { simulateTraffic };
