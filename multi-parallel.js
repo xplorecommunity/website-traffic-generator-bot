@@ -26,7 +26,7 @@ async function getCurrentIP(page) {
   }
 }
 
-// Function to simulate traffic for a single view
+// Function to simulate traffic for a single view with a new Tor circuit
 async function simulateSingleView(url, options = {}) {
   const { duration = 3000, index } = options;
   const logFile = path.join(__dirname, 'website_views.log');
@@ -48,6 +48,11 @@ async function simulateSingleView(url, options = {}) {
   };
 
   try {
+    // Request a new Tor circuit
+    await logMessage(`View #${index} - Requesting new Tor circuit...`);
+    await torControl.signalNewnym();
+    await new Promise((resolve) => setTimeout(resolve, 3000)); // Wait for circuit to establish
+
     const browser = await puppeteer.launch({
       headless: true,
       args: [
@@ -131,21 +136,6 @@ async function simulateSingleView(url, options = {}) {
     await new Promise(resolve => setTimeout(resolve, viewDuration));
 
     await page.close();
-
-    // Request new Tor circuit
-    await logMessage('Requesting new Tor circuit...');
-    await new Promise((resolve, reject) => {
-      torControl.signalNewnym((err) => {
-        if (err) {
-          console.error('Error requesting new Tor circuit:', err.message);
-          return reject(err);
-        }
-        resolve();
-      });
-    });
-    
-    await new Promise((resolve) => setTimeout(resolve, 3000)); // Wait for circuit change
-
     await browser.close();
 
     return currentIP;
@@ -162,22 +152,40 @@ async function simulateTraffic(url, options = {}) {
   // Determine number of parallel processes (use # of CPU cores)
   const numCPUs = os.cpus().length;
   const maxParallelViews = Math.min(numCPUs, views);
-  console.log("numCpus: ",numCPUs)
-  console.log("Parallel Views: ",maxParallelViews)
+  console.log("numCPUs: ", numCPUs);
+  console.log("Parallel Views: ", maxParallelViews);
 
   // Unique IPs tracker
   const uniqueIPs = new Set();
   const ipLogFile = path.join(__dirname, 'unique_ips_parallel-diff-ips.log');
 
-  // Parallel execution using Promise.all
-  const viewPromises = Array.from({ length: views }, (_, index) => 
-    simulateSingleView(url, { duration, index: index + 1 })
-    // console.log("asd")
-  );
+  // Function to limit the degree of parallelism
+  async function parallelLimit(array, limit, fn) {
+    const results = [];
+    const promises = [];
+    for (let i = 0; i < array.length; i++) {
+      promises.push(fn(array[i]));
+      if (promises.length >= limit) {
+        const res = await Promise.all(promises);
+        results.push(...res);
+        promises.splice(0, promises.length);
+      }
+    }
+    if (promises.length > 0) {
+      const res = await Promise.all(promises);
+      results.push(...res);
+    }
+    return results;
+  }
+
+  // Simulate each view with a new circuit
+  const viewPromises = Array.from({ length: views }, (_, index) => index + 1);
 
   try {
-    // Run views in parallel
-    const results = await Promise.all(viewPromises);
+    // Run views with limited parallelism
+    const results = await parallelLimit(viewPromises, maxParallelViews, async (index) => {
+      return await simulateSingleView(url, { duration, index });
+    });
 
     // Filter out null results and add to unique IPs
     results.forEach(ip => {
