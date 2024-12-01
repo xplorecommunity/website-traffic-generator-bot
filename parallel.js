@@ -171,8 +171,8 @@ async function simulateTraffic(url, options = {}) {
 
   // Parallel execution using Promise.all
   const viewPromises = Array.from({ length: views }, (_, index) => 
-    // simulateSingleView(url, { duration, index: index + 1 })
-    console.log("asd")
+    simulateSingleView(url, { duration, index: index + 1 })
+    // console.log("asd")
   );
 
   try {
