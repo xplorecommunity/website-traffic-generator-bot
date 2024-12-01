@@ -23,23 +23,6 @@ Ensure the following lines are present (and uncommented):
 SOCKSPort 9050
 ```
 
-Restart the Tor service:
-```bash
-sudo systemctl restart tor
-```
-
----
-
-### **3. Verify Tor Is Running**
-Test the Tor connection using `curl`:
-```bash
-curl --socks5-hostname 127.0.0.1:9050 https://check.torproject.org
-```
-
-If Tor is working, the response should confirm you're using the Tor network.
-
----
-
 ### **4. Configure Puppeteer to Use Tor**
 Update your Puppeteer script to use Tor's SOCKS proxy. Use the `--proxy-server=socks5://127.0.0.1:9050` argument when launching Puppeteer:
 
@@ -86,7 +69,7 @@ CookieAuthentication 1
 
 Restart Tor:
 ```bash
-sudo systemctl restart tor
+sudo service tor restart
 ```
 
 #### Install `tor` Controller Package
@@ -110,11 +93,11 @@ You can verify the new IP address by repeatedly checking `https://check.torproje
 
 
 ---
-
+```
 sudo service tor start
 sudo service tor status
 sudo service tor restart
-
+```
 ---
 
 ## Alternative: Use Password Authentication
