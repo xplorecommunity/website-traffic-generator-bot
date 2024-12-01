@@ -4,6 +4,7 @@ const fs = require('fs').promises;
 const TorControl = require('tor-control');
 const path = require('path');
 const os = require('os');
+const { default: puppeteer } = require('puppeteer');
 
 // Tor Control configuration
 const torControl = new TorControl({
@@ -49,13 +50,17 @@ async function simulateSingleView(url, options = {}) {
   };
 
   try {
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--proxy-server=socks5://127.0.0.1:9050'
-      ],
-    });
+    // const browser = await puppeteer.launch({
+    //   headless: true,
+    //   args: [
+    //     '--no-sandbox',
+    //     '--proxy-server=socks5://127.0.0.1:9050'
+    //   ],
+    // });
+
+    const browser = await puppeteer.connect({
+        browserWSEndpoint:connectionURL
+    })
 
     const page = await browser.newPage();
 
@@ -132,21 +137,6 @@ async function simulateSingleView(url, options = {}) {
     await new Promise(resolve => setTimeout(resolve, viewDuration));
 
     await page.close();
-
-    // Request new Tor circuit
-    await logMessage('Requesting new Tor circuit...');
-    await new Promise((resolve, reject) => {
-      torControl.signalNewnym((err) => {
-        if (err) {
-          console.error('Error requesting new Tor circuit:', err.message);
-          return reject(err);
-        }
-        resolve();
-      });
-    });
-    
-    await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait for circuit change
-
     await browser.close();
 
     return currentIP;
@@ -166,7 +156,7 @@ async function simulateTraffic(url, options = {}) {
 
   // Unique IPs tracker
   const uniqueIPs = new Set();
-  const ipLogFile = path.join(__dirname, 'unique_ips.log');
+  const ipLogFile = path.join(__dirname, 'unique_ips_zen.log');
 
   // Parallel execution using Promise.all
   const viewPromises = Array.from({ length: views }, (_, index) => 
@@ -191,6 +181,6 @@ async function simulateTraffic(url, options = {}) {
 }
 
 // Usage
-simulateTraffic('https://xplore-blog.vercel.app', { views: 10, duration: 3000 });
+simulateTraffic('https://xplore-blog.vercel.app', { views: 5, duration: 3000 });
 
 module.exports = { simulateTraffic };
